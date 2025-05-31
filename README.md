@@ -1,111 +1,96 @@
-# UVTrack – Sistema de Monitoramento de Radiação UV
+# UVTrack Backend - Plataforma de Coleta e Visualização de Dados UV
 
-## 📌 Descrição do Projeto
+Este repositório contém os componentes de backend e a configuração da plataforma de software para o sistema **UVTrack**, responsável por receber, processar, armazenar e visualizar os dados de exposição à radiação ultravioleta (UV) enviados pelo dispositivo vestível.
 
-O presente projeto consiste no desenvolvimento de um boné dotado de sensores capazes de realizar o monitoramento contínuo da exposição à radiação ultravioleta (UV), onde o objetivo é fornecer alertas ao usuários – através de sinais vibratórios e visuais – quando os níveis de radiação luminosa ou temperatura estiverem acima dos limites seguros de modo a prevenir riscos à saúde humana decorrente da superexposição solar. A finalidade do projeto é incentivar práticas preventivas de saúde, onde seu uso será voltado para atividades ao ar livre, esporte ou como EPI para trabalhadores expostos ao sol.
+Este backend complementa o firmware e hardware localizados no repositório principal: [gustavosouto/UVTrack](https://github.com/gustavosouto/UVTrack).
 
----
+## ☁️ Arquitetura da Plataforma
 
-## ⚙️ Funcionamento do Sistema
+A plataforma é composta por um conjunto de serviços orquestrados, tipicamente via Docker Compose, para fornecer uma solução completa de ingestão e visualização de dados IoT:
 
-O boné inteligente desenvolvido visa monitorar em tempo real as condições ambientais relacionadas à exposição solar, fornecendo alertas imediatos ao usuário sobre níveis elevados de radiação e temperatura. O funcionamento do dispositivo baseia-se em três etapas integradas: coleta de dados, processamento e emissão de alertas. 
+1.  **Broker MQTT (Ex: Mosquitto):** Atua como o ponto central de comunicação, recebendo as mensagens em formato JSON publicadas pelo dispositivo ESP8266 via protocolo MQTT.
+2.  **Serviço de Ingestão (Go):** Uma aplicação desenvolvida em Go (`main.go`) que subscreve ao tópico MQTT relevante no broker. É responsável por:
+    *   Receber as mensagens JSON contendo os dados do sensor UV.
+    *   Realizar o parsing e a validação dos dados.
+    *   Escrever os dados validados no banco de dados InfluxDB.
+3.  **Banco de Dados (InfluxDB):** Um banco de dados de séries temporais otimizado para armazenar eficientemente os dados de UV recebidos, indexados por tempo.
+4.  **Plataforma de Visualização (Grafana):** Uma ferramenta web que se conecta ao InfluxDB para permitir a criação e visualização de dashboards interativos, exibindo o histórico e as tendências dos dados de exposição UV.
 
-A coleta dos dados ambientais ocorre através de dois sensores principais. A intensidade da radiação ultravioleta é simulada por um fotoresistor LDR (Substituindo Sensor UV), devidamente conectado à porta analógica A0 do Arduino Uno R3 (Substituindo Arduino Lilypad). Este sensor atua medindo a luminosidade do ambiente, servindo como referência para estimar a exposição à radiação solar. Em complemento, a temperatura do ambiente é monitorada por um sensor TMP36, conectado à porta analógica A1, que fornece leituras precisas de temperatura, substituindo, para fins de simulação, o sensor BME280, que originalmente seria utilizado.
+## 🛠️ Tecnologias Utilizadas
 
-Após a coleta, os dados são processados pelo microcontrolador Arduino Uno R3, que analisa os valores de luminosidade e temperatura. Quando algum dos parâmetros ultrapassa o limite seguro previamente estabelecido no código do sistema, são acionados os mecanismos de alerta. A comunicação desses dados ao usuário, que no projeto físico ocorreria via Bluetooth HC-05, é simulada no Tinkercad por meio do Serial Monitor, permitindo visualizar em tempo real os valores medidos e os estados de alerta.
+*   **Linguagem do Serviço:** Go (Golang)
+*   **Protocolo de Comunicação:** MQTT
+*   **Formato de Dados:** JSON
+*   **Banco de Dados:** InfluxDB (Time Series Database)
+*   **Visualização:** Grafana
+*   **Orquestração:** Docker, Docker Compose
+*   **Broker MQTT:** Mosquitto (ou similar)
+*   **Controle de Versão:** Git, GitHub
 
-O sistema de alerta é composto por dois elementos. O alerta visual é realizado através de um LED comum, que substitui o LED LilyPad, e está conectado ao pino digital D13 do Arduino Uno R3. Esse LED é protegido por um resistor de 220 ohms, que limita a corrente elétrica, preservando a integridade do componente. Já o alerta tátil é viabilizado por um motor CC, que substitui o módulo de vibração. Este motor é controlado por um transistor NPN TIP120, cuja base está conectada ao pino digital D3 do Arduino por meio de um resistor de 1k ohm, garantindo o acionamento seguro do motor sem sobrecarregar a placa controladora.
+## 🚀 Configuração e Execução (Usando Docker Compose)
 
-A utilização destes componentes substitutos foi necessária devido às limitações da plataforma Tinkercad, que não possui suporte direto para sensores UV ou comunicação Bluetooth. A adaptação com o fotoresistor, TMP36 e Serial Monitor assegura a fidelidade da simulação ao funcionamento real do projeto, permitindo validar sua lógica e resposta em tempo real às condições simuladas de exposição solar. Este dispositivo, portanto, integra tecnologia acessível e programação embarcada com o objetivo de prevenir riscos à saúde em situações de exposição prolongada ao sol, fornecendo dados e alertas que capacitam o usuário a tomar decisões informadas sobre sua segurança.
+O arquivo `docker-compose.yml` neste repositório facilita a configuração e execução de toda a pilha de backend.
 
----
+**Pré-requisitos:**
 
-## 📋 Tecnologias Utilizadas
+*   Docker instalado ([https://docs.docker.com/get-docker/](https://docs.docker.com/get-docker/))
+*   Docker Compose instalado ([https://docs.docker.com/compose/install/](https://docs.docker.com/compose/install/))
 
-| Tecnologia     | Aplicação                                               |
-|----------------|----------------------------------------------------------|
-| Arduino IDE    | Programação e upload do código para o microcontrolador. |
-| Tinkercad      | Simulação do circuito e testes de funcionalidade.       |
-| GitHub         | Versionamento e colaboração no projeto.                 |
+**Passos:**
 
----
+1.  **Clonar o Repositório:**
+    ```bash
+    git clone https://github.com/gustavosouto/sensoruv.git
+    cd sensoruv
+    ```
+2.  **Configuração (se necessário):**
+    *   Verifique o arquivo `docker-compose.yml` para quaisquer configurações específicas de portas ou volumes.
+    *   Verifique o arquivo de configuração do Mosquitto (`mosquitto-config/mosquitto.conf`) se precisar ajustar as configurações do broker (ex: autenticação).
+    *   O serviço Go (`main.go`) pode precisar de variáveis de ambiente para configurar a conexão com o MQTT e InfluxDB (verificar o código ou o `docker-compose.yml`).
+3.  **Iniciar os Serviços:**
+    ```bash
+    docker-compose up -d
+    ```
+    Este comando irá baixar as imagens necessárias (Mosquitto, InfluxDB, Grafana), construir a imagem para o serviço Go (se definido no compose) e iniciar todos os contêineres em segundo plano (`-d`).
+4.  **Verificar os Serviços:**
+    ```bash
+    docker-compose ps
+    ```
+    Verifique se todos os contêineres (mosquitto, influxdb, grafana, go-service) estão em execução (`Up`).
+5.  **Acessar o Grafana:**
+    *   Abra seu navegador e acesse o Grafana na porta configurada (geralmente `http://localhost:3000`).
+    *   Faça login (credenciais padrão costumam ser `admin`/`admin`, mas podem ser alteradas no `docker-compose.yml`).
+    *   Configure o InfluxDB como uma fonte de dados (DataSource), apontando para o serviço InfluxDB (ex: `http://influxdb:8086`) e especificando o bucket/database correto.
+    *   Crie ou importe dashboards para visualizar os dados UV que estão sendo enviados pelo dispositivo e armazenados no InfluxDB.
+6.  **Parar os Serviços:**
+    ```bash
+    docker-compose down
+    ```
+    Este comando para e remove os contêineres definidos no `docker-compose.yml`.
 
-## 🔌 Componentes Originais
+## 🔌 Integração com o Dispositivo UVTrack
 
-| Componente                 | Modelo               | Finalidade no Sistema                                                                 |
-|----------------------------|----------------------|----------------------------------------------------------------------------------------|
-| Microcontrolador           | Arduino LilyPad      | Controlar os sensores e atuadores com foco em aplicações vestíveis.                   |
-| Sensor de temperatura/umidade | BME280           | Medição precisa da temperatura e umidade do ambiente.                                 |
-| Sensor de radiação         | Sensor UV            | Captura a intensidade da radiação ultravioleta.                                       |
-| Módulo de comunicação      | Módulo Bluetooth HC-05 | Transmissão dos dados via Bluetooth ao usuário.                                      |
-| LED indicador              | LED LilyPad          | Alerta visual ao usuário em caso de radiação ou temperatura elevada.                  |
-| Alerta tátil               | Módulo de vibração   | Geração de feedback tátil quando limites são excedidos.                               |
+O firmware do dispositivo ESP8266 (no repositório [gustavosouto/UVTrack](https://github.com/gustavosouto/UVTrack)) deve ser configurado para:
 
----
+*   Conectar-se à mesma rede Wi-Fi que hospeda o backend ou ter acesso à internet se o backend estiver na nuvem.
+*   Apontar para o endereço IP ou hostname e porta do **Broker MQTT** configurado neste backend.
+*   Utilizar as credenciais MQTT (usuário/senha), se configuradas no broker.
+*   Publicar os dados no tópico MQTT esperado pelo serviço Go (ex: `uvtrack/data`).
 
-## 💡 Componentes Utilizados na Simulação
+## 📄 Código Fonte do Serviço Go
 
-| Componente                 | Modelo               | Justificativa de Uso na Simulação                                                     |
-|----------------------------|----------------------|----------------------------------------------------------------------------------------|
-| Microcontrolador           | Arduino Uno R3       | Disponível no Tinkercad, funcionalmente equivalente ao LilyPad.                       |
-| Sensor de temperatura      | TMP36                | Sensor analógico simples e compatível com o ambiente simulado.                        |
-| Sensor de luminosidade     | LDR (Fotoresistor)   | Simula a radiação solar ao medir a luminosidade.                                      |
-| Módulo de comunicação      | Monitor Serial       | Substitui o Bluetooth para fins de visualização na simulação.                         |
-| LED indicador              | LED Comum            | Simula o alerta visual original com mesma lógica de acionamento.                      |
-| Alerta tátil               | Motor CC             | Reproduz o alerta tátil por vibração.                                                 |
-| Transistor                 | TIP120               | Necessário para controlar o motor sem sobrecarregar o microcontrolador.               |
-| Resistores                 | 220Ω, 1kΩ            | Usados para limitar corrente nos atuadores (LED e base do transistor).                |
+O código fonte principal do serviço de ingestão de dados está localizado em `main.go`. Ele utiliza bibliotecas Go para:
 
----
+*   Conectar-se ao Broker MQTT (ex: `eclipse/paho.mqtt.golang`).
+*   Subscrever a tópicos MQTT.
+*   Receber e processar mensagens (parsing de JSON).
+*   Conectar-se e escrever dados no InfluxDB (ex: `influxdata/influxdb-client-go`).
 
-## 🔁 Tabela de Equivalência
+## 👥 Equipe
 
-| Componente Original     | Componente Substituto | Justificativa                                           |
-|--------------------------|------------------------|----------------------------------------------------------|
-| Arduino LilyPad          | Arduino Uno R3         | Disponível no Tinkercad com funcionamento compatível.    |
-| Sensor BME280            | Sensor TMP36           | Sensor analógico simples com leitura de temperatura.     |
-| Sensor de radiação UV    | LDR (Fotoresistor)     | Simula a intensidade da luz solar.                       |
-| LED LilyPad              | LED Comum              | Possui a mesma funcionalidade de alerta visual.          |
-| Módulo de vibração       | Motor CC               | Reproduz o alerta tátil por vibração.                    |
-| Módulo Bluetooth HC-05   | Serial Monitor         | Utilizado como substituto para transmissão de dados.     |
-
----
-
-## 🧪 Simulação Tinkercad
-
-A simulação foi realizada na plataforma Tinkercad, onde os componentes foram integrados e testados quanto à lógica de funcionamento e emissão de alertas.
-
-🔗 Link para simulação: [Acesse o projeto no Tinkercad]([https://www.tinkercad.com](https://www.tinkercad.com/things/cwpPFPqJfvZ-uvtrack/editel?returnTo=https%3A%2F%2Fwww.tinkercad.com%2Fdashboard&sharecode=IRnn-mejee00jDnhUTVhbiRiY1knzX_Q1l7WBOqrC2Q))
-
----
-
-## 🎬 Demonstração
-
-🔗 Link para vídeo da execução do projeto físico:  
-**[Clique aqui para assistir no YouTube](https://www.youtube.com/)** 
-
----
-
-## 📂 Links Úteis
-
-| Componente         | Datasheet/Especificação Técnica                                      |
-|--------------------|---------------------------------------------------------------------------|
-| TMP36              | [Datasheet TMP36](https://www.analog.com/media/en/technical-documentation/data-sheets/TMP35_36_37.pdf) |
-| LDR                | [Datasheet LDR](https://cdn.sparkfun.com/datasheets/Sensors/Light/SEN-09088.pdf) |
-| Motor CC           | [Datasheet Motor Genérico](https://www.electroschematics.com/wp-content/uploads/2021/07/DC-Motor-Datasheet.pdf) |
-| Transistor TIP120  | [Datasheet TIP120](https://www.onsemi.com/pdf/datasheet/tip120-d.pdf) |
-| Resistor           | [Tabela de Códigos de Cores](https://www.digikey.com/en/resources/conversion-calculators/conversion-calculator-resistor-color-code) |
-
----
-
-## 👥 Equipe de Desenvolvimento
-
-| Nome Completo                            | GitHub                                                              | Responsabilidade Técnica                                                                                                                                                                   |
-|-----------------------------------------|---------------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| **Gustavo Souto Silva de Barros Santos**| [@GustavoSouto](https://github.com/GustavoSouto)                    | Responsável pela elicitação, modelagem e rastreabilidade dos RFs e RNFs, bem como pela documentação técnica. Atua como **Analista de Requisitos** e **Product Owner (PO)**.               |
-| **João Lucas Camilo**                   | [@joaolucascamilo](https://github.com/joaolucascamilo)              | Responsável pela programação embarcada, testes funcionais e calibração do sistema. Atua como **Engenheiro de Firmware** e **Engenheiro de Testes**.                                       |
-| **Luiz Felipe Silva**                   | [@LuizFelipee96](https://github.com/LuizFelipee96)                  | Responsável pela arquitetura do sistema, integração de hardware e supervisão técnica. Atua como **Coordenador Técnico** e **Arquiteto de Sistemas**.                                       |
-| **Nicolas Sá Simões**                   | [@NicolasSasi](https://github.com/NicolasSasi)                      | Responsável pelo design físico e interface do produto com o usuário. Atua como **Designer de Produto** e **Engenheiro de Interface**.                                                     |
+Consulte o README do repositório principal [gustavosouto/UVTrack](https://github.com/gustavosouto/UVTrack) para informações sobre a equipe de desenvolvimento.
 
 ## 🤝 Contribuições
-Contribuições são bem-vindas! Sinta-se à vontade para propor melhorias, corrigir problemas ou adicionar novos recursos ao projeto.
+
+Contribuições para melhorar o backend, a configuração ou a documentação são bem-vindas.
+
